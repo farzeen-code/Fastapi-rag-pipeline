@@ -1,29 +1,46 @@
+import re
 from sentence_transformers import SentenceTransformer
 
 model  = SentenceTransformer("all-MiniLM-L6-v2")
 
-def chunk_text(text, chunk_size = 500, overlap = 50):
-    words = text.split()
-    chunks = []
-    start = 0
-    while start < len(words):
-        end = start + chunk_size
-        chunks.append(" ".join(words[start:end]))
-        start += chunk_size - overlap
+def chunk_text(text: str, chunk_size: int=600, overlap: int=100):
+    if not text or not text.strip():
+        return []
+    
+    separators = ["\n\n", "\n", r"(?<=[.?!])\s+", " "]
+    
+    def split_recursive(content: str, sep_index: int) -> list[str]:
+        if len(content) <= chunk_size or sep_index >= len(separators):
+            return [content.strip()] if content.strip() else []
+        
+        sep = separators[sep_index]
+        if sep.startswith(r"(?<="):
+            parts = re.split(sep, content)
+        else:
+            parts = content.split(sep)
+            
+        chunks = []
+        current_chunk = ""
+        
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            
+            if len(current_chunk) + len(part) +1 > chunk_size:
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = current_chunk[-overlap:] + " " + part if len(current_chunk) > overlap else part
+                else:
+                    chunks.extend(split_recursive(part, sep_index+1))
+                    
+            else:
+                current_chunk = f"{current_chunk} {part}".strip()
+        
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+            
+        return chunks
 
-    return chunks
-
-def embed_chunks(chunks):
-    return model.encode(chunks)
-
-if __name__ == "__main__":
-    sample = """Retrieval-Augmented Generation (RAG) is a technique that 
-    grants an LLM access to external knowledge bases. By retrieving relevant 
-    document snippets and injecting them into the prompt context, RAG minimizes 
-    hallucinations and grounds responses in facts."""
-
-    chunk = chunk_text(sample, chunk_size=15, overlap=5)
-    embeddings = embed_chunks(chunk)
-
-    print("Number of chunks: ", len(chunk))
-    print(f"\nEmbeddings: {embeddings.shape}")
+    return split_recursive(text, 0)
+                
