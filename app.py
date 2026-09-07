@@ -20,6 +20,10 @@ async def lifespan(app: FastAPI):
     
 app = FastAPI(title="RAG Document Q&A", lifespan=lifespan)
 
+@app.get("/")
+def health_check():
+    return {"status": "healthy", "service": "RAG API"}
+
 origins = [
     "http://localhost:3000",
     "https://ecommerce-fullstack-design-olive.vercel.app", 

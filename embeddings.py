@@ -1,8 +1,16 @@
 import re
 from sentence_transformers import SentenceTransformer
 
-model  = SentenceTransformer("all-MiniLM-L6-v2")
+_model  = None
 
+def get_model():
+    global model
+    if _model is None:
+        print("Loading embedding model into memory...")
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
+        
+    
 def chunk_text(text: str, chunk_size: int=600, overlap: int=100):
     if not text or not text.strip():
         return []
