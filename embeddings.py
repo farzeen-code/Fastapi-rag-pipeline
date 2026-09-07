@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer
 _model  = None
 
 def get_model():
-    global model
+    global _model
     if _model is None:
         print("Loading embedding model into memory...")
         _model = SentenceTransformer("all-MiniLM-L6-v2")
