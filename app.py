@@ -134,3 +134,9 @@ def queryDocument(request: QueryRequest):
         print(f"Saving history: {time.time() - t3:.2f}s")
 
     return {"answer": answer, "sources": relevant_chunks}
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 1024))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
