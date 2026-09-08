@@ -7,7 +7,7 @@ def get_model():
     global _model
     if _model is None:
         print("Loading embedding model into memory...")
-        _model = SentenceTransformer("all-MiniLM-L6-v2", device=cpu)
+        _model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
     return _model
         
     
