@@ -1,7 +1,7 @@
 import hashlib
 import re
 import chromadb
-from embeddings import get_model, chunk_text
+from embeddings import get_embedding_function, chunk_text
 from memory import db
 
 Client = chromadb.PersistentClient(path="chroma_db")
@@ -16,7 +16,7 @@ def add_chunk(chunks, filename):
         return
 
     collection.delete(where={"source": filename})
-    embeddings = get_model().encode(chunks).tolist()
+    embeddings = get_embedding_function()(chunks)
     ids = [hashlib.md5((f"{filename}_{i}_{chunk}").encode()).hexdigest() for i, chunk in enumerate(chunks)]
 
     metadatas = [{"source": filename} for _ in chunks]

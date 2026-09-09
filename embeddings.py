@@ -1,14 +1,14 @@
 import re
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-_model  = None
 
-def get_model():
-    global _model
-    if _model is None:
-        print("Loading embedding model into memory...")
-        _model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-    return _model
+embedding_fn  = None
+
+def get_embedding_function():
+    global embedding_fn
+    if embedding_fn is None:
+        embedding_fn = DefaultEmbeddingFunction()
+    return embedding_fn
         
     
 def chunk_text(text: str, chunk_size: int=600, overlap: int=100):
