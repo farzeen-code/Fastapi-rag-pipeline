@@ -29,6 +29,12 @@ export default function Home() {
     setSessionId("session_" + Math.random().toString(36).substring(2, 9));
   }, []);
 
+  // Silently ping backend on page load to wake up the container
+  // before the user picks a file and tries to upload
+  useEffect(() => {
+    fetch(`${API_URL}/`).catch(() => {});
+  }, []);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -45,7 +51,7 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleUpload = async (selectedFile: File) => {
+  const handleUpload = async (selectedFile: File, attempt = 1) => {
     // Clear any pending upload retry
     if (uploadRetryTimerRef.current) {
       clearInterval(uploadRetryTimerRef.current);
@@ -53,7 +59,7 @@ export default function Home() {
     }
     setUploadRetryCountdown(0);
     setIsUploading(true);
-    setUploadStatus("Uploading & indexing document...");
+    setUploadStatus(attempt > 1 ? `Retrying upload (attempt ${attempt})...` : "Uploading & indexing document...");
 
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -77,9 +83,14 @@ export default function Home() {
         setUploadStatus(`Error: ${data.detail || "Upload failed"}`);
       }
     } catch {
-      // Server is sleeping — start countdown and auto-retry
+      if (attempt >= 2) {
+        // Gave up after 2 attempts — server not responding
+        setUploadStatus("Server unavailable. Please start the container on SnapDeploy and try again.");
+        return;
+      }
+      // Server is sleeping — countdown and auto-retry once
       pendingUploadFile.current = selectedFile;
-      let secs = 45;
+      let secs = 70;
       setUploadRetryCountdown(secs);
       setUploadStatus(`Server waking up… retrying in ${secs}s`);
 
@@ -91,9 +102,7 @@ export default function Home() {
           clearInterval(uploadRetryTimerRef.current!);
           uploadRetryTimerRef.current = null;
           setUploadRetryCountdown(0);
-          if (pendingUploadFile.current) {
-            handleUpload(pendingUploadFile.current);
-          }
+          handleUpload(selectedFile, attempt + 1);
         }
       }, 1000);
     } finally {
@@ -117,6 +126,8 @@ export default function Home() {
     setUploadStatus("");
   };
 
+  const askAttempt = useRef(0);
+
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || isAsking) return;
@@ -126,6 +137,9 @@ export default function Home() {
       clearInterval(retryTimerRef.current);
       retryTimerRef.current = null;
     }
+
+    askAttempt.current += 1;
+    const currentAttempt = askAttempt.current;
 
     const userText = question;
     setQuestion("");
@@ -148,6 +162,7 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(data.detail || "Backend error");
       }
+      askAttempt.current = 0;
       setMessages((prev) => [
         ...prev,
         {
@@ -159,13 +174,27 @@ export default function Home() {
     } catch (err: unknown) {
       const isNetwork = err instanceof TypeError;
       if (isNetwork) {
-        // Remove the user message so it doesn't appear twice on retry
         setMessages((prev) => prev.slice(0, -1));
         pendingQuestion.current = userText;
-        setServerError(true);
 
-        // Start 45-second countdown then auto-retry
-        let secs = 45;
+        if (currentAttempt >= 2) {
+          // Gave up — show final error, restore question
+          setServerError(false);
+          askAttempt.current = 0;
+          setQuestion(userText);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "⚠️ Server is unavailable after retrying. Please check SnapDeploy and try again manually.",
+            },
+          ]);
+          return;
+        }
+
+        setServerError(true);
+        // Start 70-second countdown then auto-retry once
+        let secs = 70;
         setRetryCountdown(secs);
         retryTimerRef.current = setInterval(() => {
           secs -= 1;
@@ -175,7 +204,6 @@ export default function Home() {
             retryTimerRef.current = null;
             setServerError(false);
             setRetryCountdown(0);
-            // Re-submit the question automatically
             setQuestion(pendingQuestion.current);
             setTimeout(() => {
               document.getElementById("chat-form")?.dispatchEvent(
@@ -185,6 +213,7 @@ export default function Home() {
           }
         }, 1000);
       } else {
+        askAttempt.current = 0;
         setMessages((prev) => [
           ...prev,
           {
