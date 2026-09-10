@@ -32,6 +32,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
+  const [serverError, setServerError] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function Home() {
         setUploadStatus(`Error: ${data.detail || "Upload failed"}`);
       }
     } catch {
-      setUploadStatus("Error connecting to server.");
+      setUploadStatus("Server is restarting. Please wait ~10 seconds and try again.");
     } finally {
       setIsUploading(false);
     }
@@ -93,6 +94,7 @@ export default function Home() {
 
     const userText = question;
     setQuestion("");
+    setServerError(false);
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setIsAsking(true);
 
@@ -118,14 +120,22 @@ export default function Home() {
           sources: data.sources,
         },
       ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Failed to connect to the server. Please try again.",
-        },
-      ]);
+    } catch (err: unknown) {
+      const isNetwork = err instanceof TypeError;
+      if (isNetwork) {
+        setServerError(true);
+        // Remove the user message we just added so they can retry cleanly
+        setMessages((prev) => prev.slice(0, -1));
+        setQuestion(userText);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Something went wrong. Please try again.",
+          },
+        ]);
+      }
     } finally {
       setIsAsking(false);
     }
@@ -327,6 +337,25 @@ export default function Home() {
 
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Server restart error banner */}
+        {serverError && (
+          <div className="mx-3 md:mx-4 mb-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+            <span className="text-amber-500 text-lg shrink-0">⚠️</span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-amber-800">Server is restarting</p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                The backend is briefly unavailable. Your question is still in the input box — wait a few seconds and hit Send again.
+              </p>
+            </div>
+            <button
+              onClick={() => setServerError(false)}
+              className="shrink-0 text-amber-400 hover:text-amber-600 p-1"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Input */}
         <div className="p-3 md:p-4 border-t border-gray-200 bg-white shrink-0">
