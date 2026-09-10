@@ -34,8 +34,11 @@ export default function Home() {
   const [isAsking, setIsAsking] = useState(false);
   const [serverError, setServerError] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(0);
+  const [uploadRetryCountdown, setUploadRetryCountdown] = useState(0);
   const retryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const uploadRetryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingQuestion = useRef<string>("");
+  const pendingUploadFile = useRef<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +46,12 @@ export default function Home() {
   }, [messages]);
 
   const handleUpload = async (selectedFile: File) => {
+    // Clear any pending upload retry
+    if (uploadRetryTimerRef.current) {
+      clearInterval(uploadRetryTimerRef.current);
+      uploadRetryTimerRef.current = null;
+    }
+    setUploadRetryCountdown(0);
     setIsUploading(true);
     setUploadStatus("Uploading & indexing document...");
 
@@ -63,13 +72,30 @@ export default function Home() {
         });
         setUploadStatus("Document indexed successfully!");
         setTimeout(() => setUploadStatus(""), 3000);
-        // Auto-close sidebar on mobile after upload
         setSidebarOpen(false);
       } else {
         setUploadStatus(`Error: ${data.detail || "Upload failed"}`);
       }
     } catch {
-      setUploadStatus("Server is restarting. Please wait ~10 seconds and try again.");
+      // Server is sleeping — start countdown and auto-retry
+      pendingUploadFile.current = selectedFile;
+      let secs = 45;
+      setUploadRetryCountdown(secs);
+      setUploadStatus(`Server waking up… retrying in ${secs}s`);
+
+      uploadRetryTimerRef.current = setInterval(() => {
+        secs -= 1;
+        setUploadRetryCountdown(secs);
+        setUploadStatus(`Server waking up… retrying in ${secs}s`);
+        if (secs <= 0) {
+          clearInterval(uploadRetryTimerRef.current!);
+          uploadRetryTimerRef.current = null;
+          setUploadRetryCountdown(0);
+          if (pendingUploadFile.current) {
+            handleUpload(pendingUploadFile.current);
+          }
+        }
+      }, 1000);
     } finally {
       setIsUploading(false);
     }
@@ -254,9 +280,23 @@ export default function Home() {
             </p>
           )}
           {uploadStatus && (
-            <p className={`text-xs mt-2 text-center ${uploadStatus.includes("Error") ? "text-red-400" : "text-green-400"}`}>
-              {uploadStatus}
-            </p>
+            <div className="mt-2">
+              <p className={`text-xs text-center ${
+                uploadStatus.includes("Error") ? "text-red-400" :
+                uploadStatus.includes("waking") ? "text-amber-400" :
+                "text-green-400"
+              }`}>
+                {uploadStatus}
+              </p>
+              {uploadRetryCountdown > 0 && (
+                <div className="mt-1.5 h-1 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-400 transition-all duration-1000"
+                    style={{ width: `${((45 - uploadRetryCountdown) / 45) * 100}%` }}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </div>
 
