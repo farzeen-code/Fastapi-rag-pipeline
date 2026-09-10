@@ -33,6 +33,9 @@ export default function Home() {
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [serverError, setServerError] = useState(false);
+  const [retryCountdown, setRetryCountdown] = useState(0);
+  const retryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingQuestion = useRef<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -92,9 +95,16 @@ export default function Home() {
     e.preventDefault();
     if (!question.trim() || isAsking) return;
 
+    // Clear any existing retry timer
+    if (retryTimerRef.current) {
+      clearInterval(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
     const userText = question;
     setQuestion("");
     setServerError(false);
+    setRetryCountdown(0);
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setIsAsking(true);
 
@@ -123,10 +133,31 @@ export default function Home() {
     } catch (err: unknown) {
       const isNetwork = err instanceof TypeError;
       if (isNetwork) {
-        setServerError(true);
-        // Remove the user message we just added so they can retry cleanly
+        // Remove the user message so it doesn't appear twice on retry
         setMessages((prev) => prev.slice(0, -1));
-        setQuestion(userText);
+        pendingQuestion.current = userText;
+        setServerError(true);
+
+        // Start 45-second countdown then auto-retry
+        let secs = 45;
+        setRetryCountdown(secs);
+        retryTimerRef.current = setInterval(() => {
+          secs -= 1;
+          setRetryCountdown(secs);
+          if (secs <= 0) {
+            clearInterval(retryTimerRef.current!);
+            retryTimerRef.current = null;
+            setServerError(false);
+            setRetryCountdown(0);
+            // Re-submit the question automatically
+            setQuestion(pendingQuestion.current);
+            setTimeout(() => {
+              document.getElementById("chat-form")?.dispatchEvent(
+                new Event("submit", { cancelable: true, bubbles: true })
+              );
+            }, 100);
+          }
+        }, 1000);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -342,15 +373,29 @@ export default function Home() {
         {serverError && (
           <div className="mx-3 md:mx-4 mb-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
             <span className="text-amber-500 text-lg shrink-0">⚠️</span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-amber-800">Server is restarting</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-amber-800">Server is waking up…</p>
               <p className="text-xs text-amber-600 mt-0.5">
-                The backend is briefly unavailable. Your question is still in the input box — wait a few seconds and hit Send again.
+                The backend was sleeping. Retrying automatically in{" "}
+                <span className="font-bold">{retryCountdown}s</span> — no action needed.
               </p>
+              {/* Progress bar */}
+              <div className="mt-2 h-1 bg-amber-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-400 transition-all duration-1000"
+                  style={{ width: `${((45 - retryCountdown) / 45) * 100}%` }}
+                />
+              </div>
             </div>
             <button
-              onClick={() => setServerError(false)}
-              className="shrink-0 text-amber-400 hover:text-amber-600 p-1"
+              onClick={() => {
+                if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+                setServerError(false);
+                setRetryCountdown(0);
+                setQuestion(pendingQuestion.current);
+              }}
+              className="shrink-0 text-amber-400 hover:text-amber-600 p-1 text-xs"
+              title="Cancel and edit question"
             >
               ✕
             </button>
@@ -359,7 +404,7 @@ export default function Home() {
 
         {/* Input */}
         <div className="p-3 md:p-4 border-t border-gray-200 bg-white shrink-0">
-          <form onSubmit={handleAsk} className="max-w-3xl mx-auto flex gap-2 md:gap-3">
+          <form id="chat-form" onSubmit={handleAsk} className="max-w-3xl mx-auto flex gap-2 md:gap-3">
             <input
               type="text"
               value={question}
