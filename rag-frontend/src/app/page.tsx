@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -23,9 +23,12 @@ export default function Home() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [sessionId, setSessionId] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
     setSessionId("session_" + Math.random().toString(36).substring(2, 9));
   }, []);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -35,13 +38,12 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Add 'selectedFile: File' as a parameter
   const handleUpload = async (selectedFile: File) => {
     setIsUploading(true);
     setUploadStatus("Uploading & indexing document...");
 
     const formData = new FormData();
-    formData.append("file", selectedFile); // Use the parameter here
+    formData.append("file", selectedFile);
 
     try {
       const res = await fetch(`${API_URL}/upload`, {
@@ -51,12 +53,14 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setUploadedFile({
-          name: selectedFile.name, // Use the parameter here
+          name: selectedFile.name,
           wordCount: data.word_count,
           mode: data.mode,
         });
         setUploadStatus("Document indexed successfully!");
         setTimeout(() => setUploadStatus(""), 3000);
+        // Auto-close sidebar on mobile after upload
+        setSidebarOpen(false);
       } else {
         setUploadStatus(`Error: ${data.detail || "Upload failed"}`);
       }
@@ -128,15 +132,43 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden relative">
+
+      {/* ── Mobile Overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col shrink-0">
+      <aside
+        className={`
+          fixed top-0 left-0 h-full z-30 w-72 bg-gray-900 text-white flex flex-col shrink-0
+          transform transition-transform duration-300 ease-in-out
+          md:relative md:translate-x-0 md:w-64 md:z-auto
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
         {/* Logo */}
-        <div className="p-5 border-b border-gray-800">
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <span className="text-2xl">📄</span> Farzeen's AI
-          </h1>
-          <p className="text-xs text-gray-500 mt-1">AI Document Assistant</p>
+        <div className="p-5 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <span className="text-2xl">📄</span> Farzeen's AI
+            </h1>
+            <p className="text-xs text-gray-500 mt-1">AI Document Assistant</p>
+          </div>
+          {/* Close button (mobile only) */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Upload */}
@@ -155,44 +187,19 @@ export default function Home() {
                 }
               }}
             />
-            <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">
+            <div className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg text-sm font-medium transition-colors min-h-[44px]">
               {isUploading ? (
                 <>
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Processing...
                 </>
               ) : (
                 <>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4v16m8-8H4"
-                    />
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                   Upload Document
                 </>
@@ -206,10 +213,7 @@ export default function Home() {
             </p>
           )}
           {uploadStatus && (
-            <p
-              className={`text-xs mt-2 text-center ${uploadStatus.includes("Error") ? "text-red-400" : "text-green-400"
-                }`}
-            >
+            <p className={`text-xs mt-2 text-center ${uploadStatus.includes("Error") ? "text-red-400" : "text-green-400"}`}>
               {uploadStatus}
             </p>
           )}
@@ -224,9 +228,7 @@ export default function Home() {
             <div className="bg-gray-800 rounded-lg p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {uploadedFile.name}
-                  </p>
+                  <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {uploadedFile.wordCount.toLocaleString()} words ·{" "}
                     {uploadedFile.mode === "full-context" ? "Full context" : "RAG"}
@@ -234,21 +236,11 @@ export default function Home() {
                 </div>
                 <button
                   onClick={handleDelete}
-                  className="text-gray-500 hover:text-red-400 transition-colors shrink-0 p-1 rounded hover:bg-gray-700"
+                  className="text-gray-500 hover:text-red-400 transition-colors shrink-0 p-2 rounded hover:bg-gray-700 min-w-[36px] min-h-[36px] flex items-center justify-center"
                   title="Remove document"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
@@ -264,12 +256,35 @@ export default function Home() {
       </aside>
 
       {/* ── Main Chat ── */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 h-full">
+
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+            aria-label="Open sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">📄</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 leading-none">Farzeen's AI</p>
+              {uploadedFile && (
+                <p className="text-xs text-gray-400 truncate mt-0.5">{uploadedFile.name}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center">
+              <div className="text-center px-4">
                 <div className="text-5xl mb-4">💬</div>
                 <h2 className="text-xl font-semibold text-gray-800 mb-1">
                   Ask anything about your document
@@ -277,7 +292,7 @@ export default function Home() {
                 <p className="text-sm text-gray-400">
                   {uploadedFile
                     ? `Ready to answer questions about ${uploadedFile.name}`
-                    : "Upload a document from the sidebar to get started"}
+                    : "Tap the menu to upload a document, then ask a question"}
                 </p>
               </div>
             </div>
@@ -314,8 +329,8 @@ export default function Home() {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-gray-200 bg-white">
-          <form onSubmit={handleAsk} className="max-w-3xl mx-auto flex gap-3">
+        <div className="p-3 md:p-4 border-t border-gray-200 bg-white shrink-0">
+          <form onSubmit={handleAsk} className="max-w-3xl mx-auto flex gap-2 md:gap-3">
             <input
               type="text"
               value={question}
@@ -323,33 +338,26 @@ export default function Home() {
               placeholder={
                 uploadedFile
                   ? `Ask about ${uploadedFile.name}...`
-                  : "Upload a document first, then ask a question..."
+                  : "Upload a document first..."
               }
               disabled={isAsking}
-              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 placeholder:text-gray-400"
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400 placeholder:text-gray-400 min-h-[48px]"
             />
             <button
               type="submit"
               disabled={isAsking || !question.trim() || !uploadedFile}
-              className="bg-blue-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="bg-blue-600 text-white px-4 md:px-6 py-3 rounded-xl text-sm font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2 min-h-[48px] min-w-[48px] justify-center shrink-0"
             >
               {isAsking ? (
-                "Thinking..."
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
               ) : (
                 <>
-                  Send
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
+                  <span className="hidden md:inline">Send</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
                 </>
               )}
@@ -366,21 +374,19 @@ function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex gap-3 max-w-3xl ${isUser ? "ml-auto flex-row-reverse" : ""}`}>
+    <div className={`flex gap-2 md:gap-3 ${isUser ? "ml-auto flex-row-reverse" : ""} max-w-[90%] md:max-w-3xl`}>
       {/* Avatar */}
-      <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? "bg-blue-100" : "bg-blue-100"
-          }`}
-      >
-        <span className="text-sm">{isUser ? "👤" : "🤖"}</span>
+      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+        <span className="text-xs md:text-sm">{isUser ? "👤" : "🤖"}</span>
       </div>
 
       {/* Bubble */}
       <div
-        className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${isUser
+        className={`px-3 py-2.5 md:px-4 md:py-3 rounded-2xl text-sm leading-relaxed ${
+          isUser
             ? "bg-blue-600 text-white rounded-tr-sm"
             : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm"
-          }`}
+        }`}
       >
         {isUser ? (
           <p>{message.content}</p>
@@ -399,10 +405,10 @@ function SourcesPanel({ sources }: { sources: string[] }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="ml-11 mt-1">
+    <div className="ml-9 md:ml-11 mt-1">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        className="text-xs text-gray-400 hover:text-gray-600 transition-colors py-1 px-1"
       >
         {isOpen ? "▾" : "▸"} {sources.length} source chunks
       </button>
