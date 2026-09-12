@@ -13,9 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DocMind — AI Document Assistant",
+  title: "Farzeen's AI — Document Assistant",
   description:
-    "Upload documents and ask questions. DocMind uses RAG to retrieve the most relevant context and generate accurate answers.",
+    "Upload any document and ask questions. Farzeen's AI uses RAG to retrieve the most relevant context and generate accurate answers.",
+  openGraph: {
+    title: "Farzeen's AI — Document Assistant",
+    description: "Upload any document and ask questions. Powered by RAG + Gemini.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
