@@ -1,0 +1,14 @@
+# Treat rag-frontend as vendored/documentation so GitHub ignores it in language stats
+rag-frontend/** linguist-vendored
+rag-frontend/** linguist-documentation
+
+# Ignore frontend extensions everywhere
+*.tsx linguist-vendored
+*.ts linguist-vendored
+*.jsx linguist-vendored
+*.js linguist-vendored
+*.mjs linguist-vendored
+*.css linguist-vendored
+
+# Ensure Python is strictly detected
+*.py linguist-detectable=true
