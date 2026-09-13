@@ -1,4 +1,4 @@
-# ⚡ Farzeen's AI — Full-Stack Hybrid RAG Pipeline
+# ⚡ DocAI — Full-Stack Hybrid RAG Pipeline
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
