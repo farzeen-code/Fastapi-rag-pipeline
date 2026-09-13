@@ -13,12 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Farzeen's AI — Document Assistant",
+  title: "DocAI — Document Intelligence Assistant",
   description:
-    "Upload any document and ask questions. Farzeen's AI uses RAG to retrieve the most relevant context and generate accurate answers.",
+    "Upload any document and ask questions. DocAI uses Hybrid RAG to retrieve the most relevant context and generate accurate answers.",
   openGraph: {
-    title: "Farzeen's AI — Document Assistant",
-    description: "Upload any document and ask questions. Powered by RAG + Gemini.",
+    title: "DocAI — Document Intelligence Assistant",
+    description: "Upload any document and ask questions. Powered by Hybrid RAG + Gemini.",
     type: "website",
   },
 };

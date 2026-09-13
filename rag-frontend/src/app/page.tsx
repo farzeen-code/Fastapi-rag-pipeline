@@ -251,7 +251,7 @@ export default function Home() {
         <div className="p-5 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
-              <span className="text-2xl">📄</span> Farzeen's AI
+              <span className="text-2xl">📄</span> DocAI
             </h1>
             <p className="text-xs text-gray-500 mt-1">AI Document Assistant</p>
           </div>
@@ -382,7 +382,7 @@ export default function Home() {
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-lg">📄</span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 leading-none">Farzeen's AI</p>
+              <p className="text-sm font-semibold text-gray-900 leading-none">DocAI</p>
               {uploadedFile && (
                 <p className="text-xs text-gray-400 truncate mt-0.5">{uploadedFile.name}</p>
               )}
