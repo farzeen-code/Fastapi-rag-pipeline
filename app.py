@@ -1,4 +1,5 @@
 import io
+import gc
 import docx
 import time
 from pypdf import PdfReader
@@ -88,6 +89,11 @@ async def upload_document(file: UploadFile = File(...)):
     safe_filename = file.filename.lower() if file.filename else "Unknown"
     word_count, is_small = store_document(text, safe_filename)   
     
+    # Reclaim temporary buffer memory immediately
+    del content
+    del text
+    gc.collect()
+
     return {
         "status": "ok", 
         "word_count": word_count, 
@@ -132,6 +138,8 @@ def queryDocument(request: QueryRequest):
         add_message(request.session_id, "user", request.question)
         add_message(request.session_id, "assistant", answer)
         print(f"Saving history: {time.time() - t3:.2f}s")
+
+    gc.collect()
 
     return {"answer": answer, "sources": relevant_chunks}
 

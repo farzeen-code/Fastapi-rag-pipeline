@@ -5,7 +5,10 @@ from embeddings import get_embedding_function, chunk_text
 from memory import db
 
 Client = chromadb.PersistentClient(path="chroma_db")
-collection = Client.get_or_create_collection(name = "documents")
+collection = Client.get_or_create_collection(
+    name="documents",
+    embedding_function=get_embedding_function()
+)
 
 small_doc_threshold = 200
 
@@ -16,11 +19,19 @@ def add_chunk(chunks, filename):
         return
 
     collection.delete(where={"source": filename})
-    embeddings = get_embedding_function()(chunks)
+    
+    # Process embeddings in small batches to keep memory overhead flat (<20MB)
+    all_embeddings = []
+    batch_size = 16
+    embed_fn = get_embedding_function()
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i:i + batch_size]
+        all_embeddings.extend(embed_fn(batch))
+        
     ids = [hashlib.md5((f"{filename}_{i}_{chunk}").encode()).hexdigest() for i, chunk in enumerate(chunks)]
 
     metadatas = [{"source": filename} for _ in chunks]
-    collection.upsert(documents=chunks, embeddings=embeddings, ids=ids, metadatas=metadatas)
+    collection.upsert(documents=chunks, embeddings=all_embeddings, ids=ids, metadatas=metadatas)
 
 def retrieve(question: str, filename: str=None, top_k: int=5, max_distance: float=1.25) -> list[str]:
     where_filter = {"source": filename.lower()} if filename else None
